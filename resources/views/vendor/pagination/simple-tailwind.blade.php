@@ -1,0 +1,6 @@
+@if ($paginator->hasPages())
+<nav aria-label="Navegação de páginas" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:20px;font-size:13px;line-height:1.2">
+ @if ($paginator->onFirstPage())<span aria-disabled="true" style="display:inline-flex;align-items:center;justify-content:center;min-width:78px;height:34px;padding:0 10px;border:1px solid #d7ddd7;border-radius:6px;color:#8b9690;font-weight:700">Anterior</span>@else<a href="{{ $paginator->previousPageUrl() }}" rel="prev" aria-label="Ir para a página anterior" style="display:inline-flex;align-items:center;justify-content:center;min-width:78px;height:34px;padding:0 10px;border:1px solid #b9cac3;border-radius:6px;background:#fff;color:#17354f;font-weight:700">Anterior</a>@endif
+ @if ($paginator->hasMorePages())<a href="{{ $paginator->nextPageUrl() }}" rel="next" aria-label="Ir para a próxima página" style="display:inline-flex;align-items:center;justify-content:center;min-width:78px;height:34px;padding:0 10px;border:1px solid #b9cac3;border-radius:6px;background:#fff;color:#17354f;font-weight:700">Próxima</a>@else<span aria-disabled="true" style="display:inline-flex;align-items:center;justify-content:center;min-width:78px;height:34px;padding:0 10px;border:1px solid #d7ddd7;border-radius:6px;color:#8b9690;font-weight:700">Próxima</span>@endif
+</nav>
+@endif

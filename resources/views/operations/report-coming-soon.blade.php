@@ -1,0 +1,2 @@
+@extends('layouts.app',['title'=>'Relatórios · Frota Câmara'])
+@section('content')<p class="page-kicker">Relatórios</p><h1>Relatórios operacionais</h1><section class="surface"><div class="notice"><strong>Próxima entrega.</strong> Os filtros por veículo, responsável e período, a exportação A4 e o comprovante térmico serão adicionados após a validação das telas transacionais.</div></section>@endsection

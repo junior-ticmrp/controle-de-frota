@@ -1,0 +1,19 @@
+<?php
+namespace App\Http\Controllers;
+use App\Models\Person;
+use App\Models\User;
+use App\Models\Vehicle;
+use App\Models\VehicleResponsibility;
+use App\Services\MasterDataAuditService;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
+use Illuminate\View\View;
+class VehicleResponsibilityController extends Controller
+{
+ public function edit(Request $request,Vehicle $vehicle): View { $user=$this->actor($request);$vehicle->load(['activeResponsibilities.person','responsibilities.person']);$councilMembers=Person::query()->where('active',true)->where('role','council_member')->orderBy('full_name')->get();$activeCouncil=$vehicle->activeResponsibilities->firstWhere('responsibility_type','council_member');$sectors=$vehicle->activeResponsibilities->where('responsibility_type','sector')->pluck('sector')->filter()->values()->all();return view('master-data.vehicle-responsibilities',compact('user','vehicle','councilMembers','activeCouncil','sectors')+['guard'=>$request->attributes->get('fleet.guard')]); }
+ public function update(Request $request,Vehicle $vehicle,MasterDataAuditService $audit): RedirectResponse { $user=$this->actor($request);$data=$request->validate(['council_member_id'=>['nullable',Rule::exists('people','id')],'sectors'=>['nullable','string','max:1000']]);$desiredSectors=collect(preg_split('/[\r\n,;]+/u',(string)($data['sectors']??'')))->map(fn($item)=>trim($item))->filter()->unique(fn($item)=>mb_strtolower($item))->values()->all();$councilId=$data['council_member_id']? (int)$data['council_member_id']:null;if($councilId!==null&&!Person::query()->whereKey($councilId)->where('role','council_member')->exists())return back()->withErrors(['council_member_id'=>'Selecione uma pessoa cadastrada como vereador.'])->withInput();$before=$vehicle->activeResponsibilities()->with('person')->get()->map(fn($item)=>['type'=>$item->responsibility_type,'person'=>$item->person?->full_name,'sector'=>$item->sector])->all();DB::transaction(function() use($vehicle,$user,$councilId,$desiredSectors){$active=$vehicle->activeResponsibilities()->lockForUpdate()->get();foreach($active as $item){$keep=$item->responsibility_type==='council_member'?(($item->person_id===$councilId)&&$councilId!==null):in_array($item->sector,$desiredSectors,true);if(!$keep)$item->update(['ended_at'=>now(),'changed_by_user_id'=>$user->id]);}$currentCouncil=$active->first(fn($item)=>$item->responsibility_type==='council_member'&&$item->person_id===$councilId&&$item->ended_at===null);if($councilId!==null&&$currentCouncil===null)VehicleResponsibility::create(['vehicle_id'=>$vehicle->id,'responsibility_type'=>'council_member','person_id'=>$councilId,'started_at'=>now(),'changed_by_user_id'=>$user->id]);foreach($desiredSectors as $sector){$exists=$active->first(fn($item)=>$item->responsibility_type==='sector'&&$item->sector===$sector&&$item->ended_at===null);if($exists===null)VehicleResponsibility::create(['vehicle_id'=>$vehicle->id,'responsibility_type'=>'sector','sector'=>$sector,'started_at'=>now(),'changed_by_user_id'=>$user->id]);}});$after=$vehicle->fresh()->activeResponsibilities()->with('person')->get()->map(fn($item)=>['type'=>$item->responsibility_type,'person'=>$item->person?->full_name,'sector'=>$item->sector])->all();$audit->record($user,'master_data.veiculos.responsibilities_updated',$vehicle,['active_responsibilities'=>$before],['active_responsibilities'=>$after],$request);return redirect()->route('vehicle-responsibilities.edit',$vehicle)->with('status','Responsáveis e setores atualizados com histórico preservado.'); }
+ private function actor(Request $request): User { $actor=$request->attributes->get('fleet.user');Gate::forUser($actor)->authorize('manage-master-data');return $actor; }
+}
